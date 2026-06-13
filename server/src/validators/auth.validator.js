@@ -8,8 +8,9 @@ export const registerRules = [
         .isLength({ min: 3 })
         .withMessage("Username must be at least 3 characters long"),
     body("email")
-        .optional({ checkFalsy: true })
         .trim()
+        .notEmpty()
+        .withMessage("Email is required")
         .isEmail()
         .withMessage("Email must be valid"),
     body("password")
@@ -20,7 +21,12 @@ export const registerRules = [
 ];
 
 export const loginRules = [
-    body("username").trim().notEmpty().withMessage("Username is required"),
+    body("email")
+        .trim()
+        .notEmpty()
+        .withMessage("Email is required")
+        .isEmail()
+        .withMessage("Email must be valid"),
     body("password").notEmpty().withMessage("Password is required"),
 ];
 

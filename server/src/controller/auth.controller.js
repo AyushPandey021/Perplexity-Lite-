@@ -6,6 +6,35 @@ const JWT_SECRET = process.env.JWT_SECRET || "default_jwt_secret";
 const SERVER_URL = process.env.SERVER_URL || `http://localhost:${process.env.PORT || 5000}`;
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
 
+const renderVerificationPage = ({ title, message, status = "success" }) => {
+    const isSuccess = status === "success";
+
+    return `
+  <div style="
+    font-family: Arial, sans-serif;
+    text-align: center;
+    margin-top: 100px;
+  ">
+    <h1 style="color: ${isSuccess ? "#22c55e" : "#ef4444"};">${title}</h1>
+    <p>${message}</p>
+    <a
+      href="${CLIENT_URL}/login"
+      style="
+        display: inline-block;
+        margin-top: 12px;
+        padding: 10px 20px;
+        background: #2563eb;
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+      "
+    >
+      Go to Login
+    </a>
+  </div>
+`;
+};
+
 export const register = async (req, res) => {
     const { username, email, password } = req.body;
 
@@ -109,7 +138,11 @@ export const verifyEmail = async (req, res) => {
         const { token } = req.query;
 
         if (!token) {
-            return res.status(400).json({ message: "Verification token is required" });
+            return res.status(400).send(renderVerificationPage({
+                title: "Verification Link Missing",
+                message: "The verification link is missing its token. Please use the latest email we sent you.",
+                status: "error",
+            }));
         }
 
         const decoded = jwt.verify(token, JWT_SECRET);
@@ -119,7 +152,11 @@ export const verifyEmail = async (req, res) => {
         });
 
         if (!user) {
-            return res.status(400).json({ message: "Invalid verification token" });
+            return res.status(400).send(renderVerificationPage({
+                title: "Invalid Verification Link",
+                message: "This verification link is invalid. Please register again or request a new verification email.",
+                status: "error",
+            }));
         }
 
         if (!user.verified) {
@@ -127,64 +164,112 @@ export const verifyEmail = async (req, res) => {
             await user.save();
         }
 
-        return res.status(200).send(`
-  <div style="
-    font-family: Arial, sans-serif;
-    text-align: center;
-    margin-top: 100px;
-  ">
-    <h1 style="color: #22c55e;">Email Verified</h1>
-    <p>Your email has been verified successfully.</p>
-    <a
-      href="${CLIENT_URL}/login"
-      style="
-        display: inline-block;
-        margin-top: 12px;
-        padding: 10px 20px;
-        background: #2563eb;
-        color: white;
-        text-decoration: none;
-        border-radius: 6px;
-      "
-    >
-      Go to Login
-    </a>
-  </div>
-`);
+        return res.status(200).send(renderVerificationPage({
+            title: "Email Verified",
+            message: "Your email has been verified successfully.",
+        }));
     } catch (error) {
         const message = error.name === "TokenExpiredError"
-            ? "Verification token has expired"
-            : "Invalid verification token";
+            ? "This verification link has expired. Please register again or request a new verification email."
+            : "This verification link is invalid. Please register again or request a new verification email.";
 
-        return res.status(400).json({ message });
+        return res.status(400).send(renderVerificationPage({
+            title: "Email Verification Failed",
+            message,
+            status: "error",
+        }));
     }
 };
 
 export const login = async (req, res) => {
-    const { username, password } = req.body;
+    const { email, password } = req.body;
 
     try {
-        const user = await usermodel.findOne({ username });
+        if (!email || !password) {
+            return res.status(400).json({
+                message: "Email and password are required",
+            });
+        }
+
+        const user = await usermodel.findOne({ email });
+
         if (!user) {
-            return res.status(400).json({ message: "Invalid username or password" });
+            return res.status(400).json({
+                message: "Invalid email or password",
+            });
         }
 
         const isPasswordValid = await user.comparePassword(password);
+
         if (!isPasswordValid) {
-            return res.status(400).json({ message: "Invalid username or password" });
+            return res.status(400).json({
+                message: "Invalid email or password",
+            });
         }
 
-        if (user.email && !user.verified) {
-            return res.status(403).json({ message: "Please verify your email before logging in" });
+        if (!user.verified) {
+            return res.status(403).json({
+                message: "Please verify your email before logging in",
+            });
         }
 
-        const token = jwt.sign({ userId: user._id }, JWT_SECRET, {
-            expiresIn: "1h",
+        const token = jwt.sign(
+            { userId: user._id },
+            JWT_SECRET,
+            { expiresIn: "1h" }
+        );
+
+        return res.status(200).json({
+            success: true,
+            token,
+            user: {
+                id: user._id,
+                username: user.username,
+                email: user.email,
+            },
         });
 
-        return res.status(200).json({ token });
     } catch (error) {
         console.error("Login error:", error);
-        return res.status(500).json({ message: "Server error" });
+
+        return res.status(500).json({
+            success: false,
+            message: "Server error",
+        });
     }
+};
+
+
+export const getMe = async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const user = await usermodel
+      .findById(userId)
+      .select("-password");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        verified: user.verified,
+      },
+    });
+  } catch (error) {
+    console.error("Get Me Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
 };
