@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
+
 const userSchema = new mongoose.Schema(
     {
         username: {
@@ -12,6 +13,8 @@ const userSchema = new mongoose.Schema(
             type: String,
             trim: true,
             lowercase: true,
+            unique: true,
+            sparse: true,
         },
         password: {
             type: String,
@@ -27,14 +30,20 @@ const userSchema = new mongoose.Schema(
     }
 );
 
-userSchema.pre("save",async  function () {
+userSchema.pre("save", async function () {
     if (!this.isModified("password")) {
-        return next();
-        this.password = await bcrypt.hash(this.password, 10);
+        return;
     }
+
+    if (this.password.startsWith("$2a$") || this.password.startsWith("$2b$")) {
+        return;
+    }
+
+    this.password = await bcrypt.hash(this.password, 10);
 });
-userSchema.methods.comparePassword =  function (candidatePassword) {
-    return  bcrypt.compare(candidatePassword, this.password);
+
+userSchema.methods.comparePassword = function (candidatePassword) {
+    return bcrypt.compare(candidatePassword, this.password);
 };
 
 
