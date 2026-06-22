@@ -22,13 +22,12 @@ const Register = () => {
     setError("");
     setMessage("");
     setIsSubmitting(true);
-
     try {
       const data = await registerUser(form);
       setMessage(data.message);
       setForm({ username: "", email: "", password: "" });
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Registration failed. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -36,36 +35,42 @@ const Register = () => {
 
   return (
     <AuthShell
-      title="Register"
-      subtitle="Create an account with your username, email, and password."
+      title="Create your account"
+      subtitle="Experience the future of intelligent search today."
       footerText="Already have an account?"
-      footerLinkText="Login"
+      footerLinkText="Sign In"
       footerHref="/login"
+      showGoogle
     >
-      <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+      <form className="space-y-4" onSubmit={handleSubmit}>
+        {/* Full Name → maps to "username" field */}
         <FormField
           id="username"
-          label="Username"
+          label="Full Name"
           name="username"
           type="text"
           value={form.username}
           onChange={handleChange}
-          placeholder="Choose a username"
-          autoComplete="username"
+          placeholder="Alex Rivera"
+          autoComplete="name"
           minLength={3}
           required
         />
+
+        {/* Email */}
         <FormField
           id="email"
-          label="Email address"
+          label="Email Address"
           name="email"
           type="email"
           value={form.email}
           onChange={handleChange}
-          placeholder="you@example.com"
+          placeholder="alex@example.com"
           autoComplete="email"
           required
         />
+
+        {/* Password */}
         <FormField
           id="password"
           label="Password"
@@ -73,36 +78,40 @@ const Register = () => {
           type="password"
           value={form.password}
           onChange={handleChange}
-          placeholder="Minimum 6 characters"
+          placeholder="••••••••"
           autoComplete="new-password"
           minLength={6}
           required
+          hint="Must be at least 6 characters long."
         />
 
-        {error ? (
-          <div className="rounded-[8px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        {/* Error banner */}
+        {error && (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
             {error}
           </div>
-        ) : null}
+        )}
 
-        {message ? (
-          <div className="rounded-[8px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        {/* Success banner */}
+        {message && (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
             {message}{" "}
             <Link
-              className="font-semibold underline-offset-4 hover:underline"
               to="/login"
+              className="font-semibold underline underline-offset-2 hover:text-emerald-900 transition-colors"
             >
               Go to login
             </Link>
           </div>
-        ) : null}
+        )}
 
+        {/* Submit */}
         <button
-          className="h-12 w-full rounded-[8px] bg-cyan-500 px-4 text-sm font-semibold text-white transition hover:bg-cyan-600 disabled:cursor-not-allowed disabled:bg-cyan-300"
           type="submit"
           disabled={isSubmitting}
+          className="mt-2 h-12 w-full rounded-xl bg-orange-500 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-600 active:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isSubmitting ? "Creating account..." : "Create account"}
+          {isSubmitting ? "Creating account…" : "Create Account"}
         </button>
       </form>
     </AuthShell>

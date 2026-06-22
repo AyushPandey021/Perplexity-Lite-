@@ -98,28 +98,97 @@ export async function sendMessage(req, res) {
 }
 
 
-export async function  getChats(req,res){
-    const user = req.user
-    const chats = await chatModel.find({user:user.id})
-res.status(200).json({
-    message:"chats retrived sucess",
-    chats
-})
+export async function getChats(req, res) {
+    try {
+        const chats = await chatModel
+            .find({ user: req.user.id })
+            .sort({ updatedAt: -1 });
+
+        res.status(200).json({
+            success: true,
+            message: "Chats retrieved successfully",
+            chats,
+        });
+    } catch (error) {
+        console.error("Get Chats Error:", error);
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to retrieve chats",
+        });
+    }
 }
 
-export async function getMessages(req,res){
-    const {chatId} = req.params
+export async function getMessages(req, res) {
+    try {
+        const { chatId } = req.params;
 
-    const chat= await chatId.findOne({
-        _id: chatId,
-        user:req.user.id
-    })
-    if(!chat){
-        return res.status(404).json({
-            message:"chat not found"
-        })
+        const chat = await chatModel.findOne({
+            _id: chatId,
+            user: req.user.id,
+        });
+
+        if (!chat) {
+            return res.status(404).json({
+                success: false,
+                message: "Chat not found",
+            });
+        }
+
+        const messages = await messageModel
+            .find({ chat: chatId })
+            .sort({ createdAt: 1 });
+
+        return res.status(200).json({
+            success: true,
+            message: "Messages retrieved successfully",
+            messages,
+        });
+    } catch (error) {
+        console.error("Get Messages Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to retrieve messages",
+        });
     }
-    const messages = await messageModel.find({[
-        chat: chatId
-    ]})
+}
+
+
+export async function deleteChat(req, res) {
+  try {
+    const { chatId } = req.params;
+
+    const chat = await chatModel.findOne({
+      _id: chatId,
+      user: req.user.id,
+    });
+
+    if (!chat) {
+      return res.status(404).json({
+        success: false,
+        message: "Chat not found",
+      });
+    }
+
+    // Delete all messages in the chat
+    await messageModel.deleteMany({
+      chat: chatId,
+    });
+
+    // Delete chat
+    await chatModel.findByIdAndDelete(chatId);
+
+    return res.status(200).json({
+      success: true,
+      message: "Chat deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete Chat Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete chat",
+    });
+  }
 }

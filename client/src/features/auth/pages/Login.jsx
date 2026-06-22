@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useDispatch ,useSelector} from "react-redux";
-import { useNavigate , Navigate} from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { useNavigate, Navigate, Link } from "react-router-dom";
 import AuthShell from "../components/AuthShell";
 import FormField from "../components/FormField";
 import { login } from "../model/authSlice";
@@ -10,9 +10,10 @@ const Login = () => {
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const user = useSelector((state) => state.auth.user);
   const loading = useSelector((state) => state.auth.loading);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (event) => {
     setForm((current) => ({
@@ -25,29 +26,31 @@ const Login = () => {
     event.preventDefault();
     setError("");
     setIsSubmitting(true);
-
     try {
       await dispatch(login(form)).unwrap();
       navigate("/dashboard");
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Invalid email or password.");
     } finally {
       setIsSubmitting(false);
     }
   };
-  if(loading && user){
-    return <Navigate to="/dashboard" replace />
+
+  if (loading && user) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return (
     <AuthShell
-      title="Login"
-      subtitle="Enter your email and password to continue."
-      footerText="Do not have an account?"
-      footerLinkText="Register"
+      title="Welcome back"
+      subtitle="Sign in to continue your discovery."
+      footerText="Don't have an account?"
+      footerLinkText="Sign up"
       footerHref="/register"
+      showGoogle
     >
-      <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+      <form className="space-y-4" onSubmit={handleSubmit}>
+        {/* Email */}
         <FormField
           id="email"
           label="Email address"
@@ -55,10 +58,12 @@ const Login = () => {
           type="email"
           value={form.email}
           onChange={handleChange}
-          placeholder="you@example.com"
+          placeholder="name@example.com"
           autoComplete="email"
           required
         />
+
+        {/* Password with "Forgot password?" inline */}
         <FormField
           id="password"
           label="Password"
@@ -66,23 +71,33 @@ const Login = () => {
           type="password"
           value={form.password}
           onChange={handleChange}
-          placeholder="Enter your password"
+          placeholder="••••••••"
           autoComplete="current-password"
           required
+          rightLabel={
+            <Link
+              to="/forgot-password"
+              className="text-orange-500 hover:text-orange-600 font-medium transition-colors"
+            >
+              Forgot password?
+            </Link>
+          }
         />
 
-        {error ? (
-          <div className="rounded-[8px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        {/* Error banner */}
+        {error && (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
             {error}
           </div>
-        ) : null}
+        )}
 
+        {/* Submit */}
         <button
-          className="h-12 w-full rounded-[8px] bg-cyan-500 px-4 text-sm font-semibold text-white transition hover:bg-cyan-600 disabled:cursor-not-allowed disabled:bg-cyan-300"
           type="submit"
           disabled={isSubmitting}
+          className="mt-2 h-12 w-full rounded-xl bg-orange-500 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-600 active:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isSubmitting ? "Signing in..." : "Sign in"}
+          {isSubmitting ? "Signing in…" : "Sign In"}
         </button>
       </form>
     </AuthShell>
