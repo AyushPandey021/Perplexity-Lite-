@@ -4,7 +4,8 @@ import messageModel from "../models/message.model.js";
 
 export async function sendMessage(req, res) {
     try {
-        const { message } = req.body;
+        const { message, chatId, chat, messages } = req.body;
+        const requestedChatId = chatId || chat;
 
         if (!message?.trim()) {
             return res.status(400).json({
@@ -12,12 +13,6 @@ export async function sendMessage(req, res) {
                 message: "Message is required",
             });
         }
-
-        // Generate title from first message
-        const title = await generateChatTitle(message);
-
-        // Generate AI response
-        const aiResponse = await generateResponse(message);
 
         const currentUserId = req.userId || req.user?.id;
 
@@ -28,23 +23,58 @@ export async function sendMessage(req, res) {
             });
         }
 
-        // Create chat
-        const chat = await chatModel.create({
-            user: currentUserId,
-            title,
-            lastMessage: message,
-        });
+        let chatDoc;
+        let conversationHistory = [];
 
-        // Save user message
+        if (requestedChatId) {
+            chatDoc = await chatModel.findOne({ _id: requestedChatId, user: currentUserId });
+            if (!chatDoc) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Chat not found",
+                });
+            }
+
+            conversationHistory = Array.isArray(messages)
+                ? messages
+                : await messageModel
+                    .find({ chat: chatDoc._id })
+                    .sort({ createdAt: 1 })
+                    .lean()
+                    .then((items) =>
+                        items.map((item) => ({
+                            role: item.role,
+                            content: item.content,
+                        }))
+                    );
+        }
+
+        const title = chatDoc ? chatDoc.title : await generateChatTitle(message);
+
+        const aiResponse = await generateResponse([
+            ...conversationHistory,
+            { role: "user", content: message },
+        ]);
+
+        if (!chatDoc) {
+            chatDoc = await chatModel.create({
+                user: currentUserId,
+                title,
+                lastMessage: message,
+            });
+        } else {
+            chatDoc.lastMessage = message;
+            await chatDoc.save();
+        }
+
         const userMessage = await messageModel.create({
-            chat: chat._id,
+            chat: chatDoc._id,
             content: message,
             role: "user",
         });
 
-        // Save AI message
         const aiMessage = await messageModel.create({
-            chat: chat._id,
+            chat: chatDoc._id,
             content: aiResponse,
             role: "ai",
         });
@@ -65,4 +95,31 @@ export async function sendMessage(req, res) {
             message: error.message || "Internal Server Error",
         });
     }
+}
+
+
+export async function  getChats(req,res){
+    const user = req.user
+    const chats = await chatModel.find({user:user.id})
+res.status(200).json({
+    message:"chats retrived sucess",
+    chats
+})
+}
+
+export async function getMessages(req,res){
+    const {chatId} = req.params
+
+    const chat= await chatId.findOne({
+        _id: chatId,
+        user:req.user.id
+    })
+    if(!chat){
+        return res.status(404).json({
+            message:"chat not found"
+        })
+    }
+    const messages = await messageModel.find({[
+        chat: chatId
+    ]})
 }

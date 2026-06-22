@@ -1,6 +1,6 @@
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { ChatMistralAI } from "@langchain/mistralai";
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { AIMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
 
 const geminiModel = new ChatGoogleGenerativeAI({
   model: "gemini-2.5-flash-lite",
@@ -14,6 +14,21 @@ const mistralModel = new ChatMistralAI({
 
 function extractContent(response) {
   if (!response) return "";
+
+  if (typeof response.text === "string") {
+    return response.text.trim();
+  }
+
+  if (Array.isArray(response.text)) {
+    return response.text
+      .map((item) => {
+        if (typeof item === "string") return item;
+        if (item?.text) return item.text;
+        return "";
+      })
+      .join("")
+      .trim();
+  }
 
   if (typeof response.content === "string") {
     return response.content.trim();
@@ -33,21 +48,24 @@ function extractContent(response) {
   return "";
 }
 
-export async function generateResponse(message) {
-  try {
-    if (!message?.trim()) {
-      throw new Error("Message is required");
-    }
+export async function generateResponse(messages) {
+  const formattedMessages = Array.isArray(messages)
+    ? messages
+      .filter((msg) => msg && msg.role && typeof msg.content === "string")
+      .map((msg) => {
+        if (msg.role === "user") return new HumanMessage(msg.content);
+        if (msg.role === "ai") return new AIMessage(msg.content);
+        return null;
+      })
+      .filter(Boolean)
+    : [new HumanMessage(String(messages || ""))];
 
-    const response = await geminiModel.invoke([
-      new HumanMessage(message),
-    ]);
-
-    return extractContent(response);
-  } catch (error) {
-    console.error("Gemini response error:", error);
-    throw new Error("Failed to generate AI response");
+  if (!formattedMessages.length) {
+    return "";
   }
+
+  const response = await geminiModel.invoke(formattedMessages);
+  return extractContent(response);
 }
 
 export async function generateChatTitle(message) {
