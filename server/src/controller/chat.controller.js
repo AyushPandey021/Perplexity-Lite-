@@ -82,7 +82,7 @@ export async function sendMessage(req, res) {
         res.status(201).json({
             success: true,
             title,
-            chat,
+            chat: chatDoc,
             userMessage,
             aiMessage,
             response: aiResponse,
@@ -96,8 +96,6 @@ export async function sendMessage(req, res) {
         });
     }
 }
-
-
 export async function getChats(req, res) {
     try {
         const chats = await chatModel
@@ -118,7 +116,6 @@ export async function getChats(req, res) {
         });
     }
 }
-
 export async function getMessages(req, res) {
     try {
         const { chatId } = req.params;
@@ -153,42 +150,40 @@ export async function getMessages(req, res) {
         });
     }
 }
-
-
 export async function deleteChat(req, res) {
-  try {
-    const { chatId } = req.params;
+    try {
+        const { chatId } = req.params;
 
-    const chat = await chatModel.findOne({
-      _id: chatId,
-      user: req.user.id,
-    });
+        const chat = await chatModel.findOne({
+            _id: chatId,
+            user: req.user.id,
+        });
 
-    if (!chat) {
-      return res.status(404).json({
-        success: false,
-        message: "Chat not found",
-      });
+        if (!chat) {
+            return res.status(404).json({
+                success: false,
+                message: "Chat not found",
+            });
+        }
+
+        // Delete all messages in the chat
+        await messageModel.deleteMany({
+            chat: chatId,
+        });
+
+        // Delete chat
+        await chatModel.findByIdAndDelete(chatId);
+
+        return res.status(200).json({
+            success: true,
+            message: "Chat deleted successfully",
+        });
+    } catch (error) {
+        console.error("Delete Chat Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to delete chat",
+        });
     }
-
-    // Delete all messages in the chat
-    await messageModel.deleteMany({
-      chat: chatId,
-    });
-
-    // Delete chat
-    await chatModel.findByIdAndDelete(chatId);
-
-    return res.status(200).json({
-      success: true,
-      message: "Chat deleted successfully",
-    });
-  } catch (error) {
-    console.error("Delete Chat Error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to delete chat",
-    });
-  }
 }

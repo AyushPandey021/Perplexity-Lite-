@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import AuthHome from '../features/auth/pages/AuthHome'
 import Login from '../features/auth/pages/Login'
 import Register from '../features/auth/pages/Register'
+import Home from '../features/auth/pages/Home'
 import { fetchCurrentUser } from '../features/auth/model/authSlice'
 
 const ProtectedRoute = () => {
@@ -71,6 +72,10 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
+        element: createElement(Home),
+      },
+      {
+        path: 'welcome',
         element: createElement(AuthHome),
       },
     ],

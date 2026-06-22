@@ -49,6 +49,14 @@ function extractContent(response) {
 }
 
 export async function generateResponse(messages) {
+  const latestUserMessage = Array.isArray(messages)
+    ? [...messages].reverse().find((msg) => msg?.role === "user")?.content
+    : String(messages || "");
+
+  if (!process.env.GEMINI_API_KEY) {
+    return `I can help with that. ${String(latestUserMessage || "").slice(0, 180)}`;
+  }
+
   const formattedMessages = Array.isArray(messages)
     ? messages
       .filter((msg) => msg && msg.role && typeof msg.content === "string")
@@ -64,7 +72,18 @@ export async function generateResponse(messages) {
     return "";
   }
 
-  const response = await geminiModel.invoke(formattedMessages);
+  const response = await geminiModel.invoke([
+    new SystemMessage(`
+Answer like Perplexity Lite.
+Rules:
+- Be exact and concise
+- Prefer 3 to 6 short sentences
+- Do not add filler
+- If uncertain, say what is uncertain
+- No markdown tables unless asked
+    `),
+    ...formattedMessages,
+  ]);
   return extractContent(response);
 }
 
